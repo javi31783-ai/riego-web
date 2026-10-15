@@ -6,6 +6,7 @@
   <title>Smart Irrigation Controller</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -22,10 +23,18 @@
     .header h1 { font-size: 20px; font-weight: 700; color: #10b981; margin: 0; display: flex; align-items: center; gap: 8px; }
     .status-pill { background: #1e293b; color: #10b981; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 20px; border: 1px solid #334155; }
     
+    .clock-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 14px 18px; border-radius: 16px; margin-bottom: 16px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+    .clock-date { display: flex; flexDirection: column; }
+    .clock-day { font-size: 15px; font-weight: 700; color: #10b981; text-transform: capitalize; }
+    .clock-subdate { font-size: 13px; color: #94a3b8; margin-top: 2px; }
+    .clock-time { font-size: 20px; font-weight: 700; color: #f8fafc; font-family: monospace; letter-spacing: 1px; }
+
     .card { background: var(--tg-theme-secondary-bg-color, #131b2e); padding: 18px; border-radius: 16px; margin-bottom: 16px; box-shadow: 0 8px 20px rgba(0,0,0,0.4); border: 1px solid #1e293b; }
     .card-manual { border: 2px solid #10b981; }
     h3 { margin-top: 0; margin-bottom: 12px; font-size: 16px; font-weight: 600; color: #f8fafc; display: flex; align-items: center; gap: 8px; }
     label { font-size: 13px; display: block; margin-top: 10px; color: #94a3b8; font-weight: 500; }
+    
+    input[type=number], input[type=time] { width: 100%; padding: 11px 14px; margin-top: 6px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #f8fafc; box-sizing: border-box; font-size: 15px; outline: none; }
     
     .manual-container { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
     .counter-row { display: flex; justify-content: center; }
@@ -34,7 +43,7 @@
     .counter-val { padding: 0 4px; font-size: 17px; font-weight: 700; color: #f8fafc; min-width: 54px; text-align: center; }
     
     .action-buttons-row { display: flex; gap: 10px; width: 100%; }
-    .btn-action { border: none; padding: 12px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 15px; transition: 0.2s; width: 100%; text-align: center; }
+    .btn-action { border: none; padding: 12px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 15px; width: 100%; text-align: center; }
     .btn-regar { background: #10b981; color: #090d16; }
     .btn-parar { background: #ef4444; color: #fff; }
     
@@ -45,6 +54,18 @@
     .power-bar { height: 10px; border-radius: 5px; background: #1e293b; transition: background 0.1s ease; }
     .power-labels { display: flex; justify-content: space-between; font-size: 10px; color: #64748b; font-weight: 600; margin-top: 4px; }
     .red-warning { color: #ef4444; font-size: 12px; margin-top: 10px; font-weight: 600; display: none; background: rgba(239,68,68,0.1); padding: 10px; border-radius: 8px; border-left: 4px solid #ef4444; }
+
+    .toggle-container { display: flex; align-items: center; justify-content: space-between; background: #0f172a; padding: 12px 14px; border-radius: 10px; margin-bottom: 12px; border: 1px solid #1e293b; }
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider-toggle { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #334155; transition: .3s; border-radius: 24px; }
+    .slider-toggle:before { position: absolute; content: ''; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .3s; border-radius: 50%; }
+    input:checked + .slider-toggle { background-color: #10b981; }
+    input:checked + .slider-toggle:before { transform: translateX(20px); }
+
+    .days-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
+    .day-box { background: #0f172a; padding: 9px; border-radius: 8px; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 1px solid #1e293b; }
+    .day-box input { accent-color: #10b981; margin-right: 5px; }
 
     details.card { padding: 0; overflow: hidden; }
     summary { padding: 16px 18px; cursor: pointer; color: #10b981; font-size: 15px; font-weight: 600; outline: none; display: flex; justify-content: space-between; align-items: center; user-select: none; background: #131b2e; }
@@ -61,7 +82,16 @@
   <div class="container">
     <div class="header">
       <h1>🌱 Riego ESP32</h1>
-      <div class="status-pill">TELEGRAM BOT</div>
+      <div class="status-pill">TELEGRAM APP</div>
+    </div>
+
+    <!-- RELOJ EN VIVO -->
+    <div class="clock-card">
+      <div class="clock-date">
+        <span id="webDay" class="clock-day">Cargando...</span>
+        <span id="webDate" class="clock-subdate">--/--/----</span>
+      </div>
+      <div id="webTime" class="clock-time">--:--:--</div>
     </div>
 
     <!-- 1. CONTROL MANUAL RÁPIDO -->
@@ -76,7 +106,6 @@
             <button type="button" class="counter-btn" onclick="cambiarMinutos(0.5)">+</button>
           </div>
         </div>
-
         <div class="action-buttons-row">
           <button type="button" class="btn-action btn-regar" onclick="ejecutarAccion('regar')">💧 Regar</button>
           <button type="button" class="btn-action btn-parar" onclick="ejecutarAccion('parar')">🛑 Parar</button>
@@ -84,47 +113,59 @@
       </div>
     </div>
 
-    <!-- 2. CONFIGURACIÓN DE POTENCIA Y POTENCIA MÁXIMA -->
-    <details class="card">
-      <summary>
-        <span>⚙️ Configuración de Potencia</span>
-        <span class="arrow">▼</span>
-      </summary>
-      <div class="card-content" style="padding-top:14px;">
-        <label>Seleccionar Potencia Actual:</label>
-        <div class="slider-container">
-          <div style="flex-grow:1; display:flex; flex-direction:column;">
-            <input type="range" id="sliderMaxPct" min="1" max="100" value="60" oninput="actualizarSlider(this.value)">
-            <div class="power-bar-wrapper">
-              <div class="power-bar" id="powerBar"></div>
-              <div class="power-labels">
-                <span>1% (Azul)</span>
-                <span>20%</span>
-                <span>60% (Verde)</span>
-                <span>80% (Ámbar)</span>
-                <span>100% (Rojo)</span>
+    <form id="formConfig" onsubmit="guardarConfiguracion(event)">
+
+      <!-- 2. CONFIGURACIÓN GLOBAL DEL MOTOR -->
+      <details class="card">
+        <summary><span>⚙️ Configuración Global del Motor</span><span class="arrow">▼</span></summary>
+        <div class="card-content" style="padding-top:14px;">
+          <label>Potencia Máxima Global:</label>
+          <div class="slider-container">
+            <div style="flex-grow:1; display:flex; flex-direction:column;">
+              <input type="range" id="sliderMaxPct" name="max_pct" min="1" max="100" value="60" oninput="actualizarSlider(this.value)">
+              <div class="power-bar-wrapper">
+                <div class="power-bar" id="powerBar"></div>
+                <div class="power-labels"><span>1% (Azul)</span><span>20%</span><span>60% (Verde)</span><span>80% (Ámbar)</span><span>100% (Rojo)</span></div>
               </div>
             </div>
+            <span id="pctVal" class="slider-val">60</span>%
           </div>
-          <span id="pctVal" class="slider-val">60</span>%
+          <div id="warningRed" class="red-warning">⚠️ <b>¡ATENCIÓN! Potencia en zona roja (81%-100%).</b> Riesgo de calentamiento y sobrecarga.</div>
         </div>
-        <div id="warningRed" class="red-warning">
-          ⚠️ <b>¡ATENCIÓN! Potencia en zona roja (81%-100%).</b> Riesgo de calentamiento y sobrecarga del motor.
-        </div>
-      </div>
-    </details>
+      </details>
 
-    <!-- 3. CONSULTA DE ESTADO COMPLETO -->
-    <details class="card">
-      <summary>
-        <span>📊 Consultar Estado e Historial</span>
-        <span class="arrow">▼</span>
-      </summary>
-      <div class="card-content" style="padding-top:14px;">
-        <p style="color:#94a3b8; font-size:13px; margin-top:0;">Pulsa el botón para solicitar el informe de estado, clima actual y el historial de los últimos riegos.</p>
-        <button type="button" class="btn-submit" onclick="ejecutarAccion('estado')">📜 Ver Estado Completo</button>
-      </div>
-    </details>
+      <!-- 3. PROGRAMAS DE RIEGO (1 al 5) -->
+      <script>
+        const diasNombres = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+        for (let i = 0; i < 5; i++) {
+          document.write(`
+            <details class="card">
+              <summary><span>Programa ${i + 1}</span><span class="arrow">▼</span></summary>
+              <div class="card-content">
+                <div class="toggle-container" style="margin-top:14px;">
+                  <span style="font-size:14px; font-weight:600; color:#f8fafc;">Estado del programa</span>
+                  <label class="switch"><input type="checkbox" id="en_${i}"><span class="slider-toggle"></span></label>
+                </div>
+                <label>Días de la semana:</label>
+                <div class="days-grid">
+          `);
+          for (let d = 0; d < 7; d++) {
+            document.write(`<label class="day-box"><input type="checkbox" id="d_${i}_${d}">${diasNombres[d]}</label>`);
+          }
+          document.write(`
+                </div>
+                <label>Hora de inicio:</label>
+                <input type="time" id="hora_${i}" value="08:00">
+                <label>Tiempo de riego (minutos):</label>
+                <input type="number" id="dur_${i}" min="1" max="120" value="5">
+              </div>
+            </details>
+          `);
+        }
+      </script>
+
+      <button type="submit" class="btn-submit">Guardar Toda la Programación</button>
+    </form>
 
   </div>
 
@@ -132,8 +173,17 @@
     const tg = window.Telegram.WebApp;
     tg.expand();
 
-    let minsManual = 0.5;
+    function actualizarReloj() {
+      const ahora = new Date();
+      const dias = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      document.getElementById('webDay').innerText = dias[ahora.getDay()];
+      document.getElementById('webDate').innerText = `${String(ahora.getDate()).padStart(2, '0')}/${String(ahora.getMonth() + 1).padStart(2, '0')}/${ahora.getFullYear()}`;
+      document.getElementById('webTime').innerText = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}:${String(ahora.getSeconds()).padStart(2, '0')}`;
+    }
+    setInterval(actualizarReloj, 1000);
+    actualizarReloj();
 
+    let minsManual = 0.5;
     function cambiarMinutos(delta) {
       minsManual = parseFloat((minsManual + delta).toFixed(1));
       if (minsManual < 0.5) minsManual = 0.5;
@@ -145,31 +195,44 @@
       document.getElementById('pctVal').innerText = val;
       let warn = document.getElementById('warningRed');
       let bar = document.getElementById('powerBar');
-      let color = '#3b82f6'; // Azul (1-20%)
-      if (val > 20 && val <= 60) color = '#10b981'; // Verde (21-60%)
-      else if (val > 60 && val <= 80) color = '#f59e0b'; // Ámbar (61-80%)
-      else if (val > 80) color = '#ef4444'; // Rojo (81-100%)
-
-      if (bar) {
-        bar.style.background = `linear-gradient(to right, ${color} ${val}%, #1e293b ${val}%)`;
-      }
-      if (val > 80) {
-        warn.style.display = 'block';
-      } else {
-        warn.style.display = 'none';
-      }
+      let color = '#3b82f6';
+      if (val > 20 && val <= 60) color = '#10b981';
+      else if (val > 60 && val <= 80) color = '#f59e0b';
+      else if (val > 80) color = '#ef4444';
+      if (bar) bar.style.background = `linear-gradient(to right, ${color} ${val}%, #1e293b ${val}%)`;
+      warn.style.display = (val > 80) ? 'block' : 'none';
     }
 
     function ejecutarAccion(tipo) {
-      const potencia = document.getElementById('sliderMaxPct').value;
       if (tipo === 'regar') {
-        // Envia el comando con minutos y porcentaje elegido
         tg.sendData(`/regar ${minsManual}`);
       } else if (tipo === 'parar') {
         tg.sendData(`/parar`);
-      } else if (tipo === 'estado') {
-        tg.sendData(`/estado`);
       }
+      tg.close();
+    }
+
+    function guardarConfiguracion(e) {
+      e.preventDefault();
+      let datos = {
+        max_pct: parseInt(document.getElementById('sliderMaxPct').value),
+        programs: []
+      };
+      for (let i = 0; i < 5; i++) {
+        let mask = 0;
+        for (let d = 0; d < 7; d++) {
+          if (document.getElementById(`d_${i}_${d}`).checked) mask |= (1 << d);
+        }
+        let horaVal = document.getElementById(`hora_${i}`).value.split(':');
+        datos.programs.push({
+          en: document.getElementById(`en_${i}`).checked,
+          mask: mask,
+          h: parseInt(horaVal[0]) || 0,
+          m: parseInt(horaVal[1]) || 0,
+          dur: parseInt(document.getElementById(`dur_${i}`).value) || 1
+        });
+      }
+      tg.sendData(JSON.stringify(datos));
       tg.close();
     }
 
