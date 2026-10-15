@@ -6,7 +6,6 @@
   <title>Smart Irrigation Controller</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body {
       font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -24,7 +23,7 @@
     .status-pill { background: #1e293b; color: #10b981; font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 20px; border: 1px solid #334155; }
     
     .clock-card { background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); padding: 14px 18px; border-radius: 16px; margin-bottom: 16px; border: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
-    .clock-date { display: flex; flexDirection: column; }
+    .clock-date { display: flex; flex-direction: column; }
     .clock-day { font-size: 15px; font-weight: 700; color: #10b981; text-transform: capitalize; }
     .clock-subdate { font-size: 13px; color: #94a3b8; margin-top: 2px; }
     .clock-time { font-size: 20px; font-weight: 700; color: #f8fafc; font-family: monospace; letter-spacing: 1px; }
@@ -75,6 +74,9 @@
     .card-content { padding: 0 18px 18px 18px; border-top: 1px solid #1e293b; }
     
     .btn-submit { background: #10b981; color: #fff; font-weight: 700; margin-top: 16px; cursor: pointer; border: none; padding: 14px; width: 100%; border-radius: 12px; font-size: 15px; }
+    .btn-warning { background: #f59e0b !important; color: #fff !important; margin-top: 12px; }
+    .btn-danger { background: #ef4444 !important; color: #fff !important; margin-top: 12px; }
+    .btn-info { background: #3b82f6 !important; color: #fff !important; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -167,6 +169,16 @@
       <button type="submit" class="btn-submit">Guardar Toda la Programación</button>
     </form>
 
+    <!-- 4. CONSULTAS Y MANTENIMIENTO -->
+    <div class="card">
+      <h3>📊 Consultas y Mantenimiento</h3>
+      <button type="button" class="btn-action btn-info" onclick="ejecutarAccion('estado')">📋 Ver Estado General</button>
+      <button type="button" class="btn-action btn-info" onclick="ejecutarAccion('clima')">🌧️ Ver Predicción Clima (7 días)</button>
+      <button type="button" class="btn-action btn-info" onclick="ejecutarAccion('historial')">📜 Ver Historial de Riegos</button>
+      <button type="button" class="btn-action btn-warning" onclick="confirmarAccion('wifi')">📶 Olvidar Redes WiFi</button>
+      <button type="button" class="btn-action btn-danger" onclick="confirmarAccion('hardreset')">💥 Hard Reset (Fábrica)</button>
+    </div>
+
   </div>
 
   <script>
@@ -208,8 +220,30 @@
         tg.sendData(`/regar ${minsManual}`);
       } else if (tipo === 'parar') {
         tg.sendData(`/parar`);
+      } else if (tipo === 'estado') {
+        tg.sendData(`/estado`);
+      } else if (tipo === 'clima') {
+        tg.sendData(`/clima`);
+      } else if (tipo === 'historial') {
+        tg.sendData(`/historial`);
+      } else if (tipo === 'wifi') {
+        tg.sendData(`/reset_wifi`);
+      } else if (tipo === 'hardreset') {
+        tg.sendData(`/hard_reset`);
       }
       tg.close();
+    }
+
+    function confirmarAccion(tipo) {
+      if (tipo === 'wifi') {
+        if (confirm("¿Seguro que deseas borrar las credenciales WiFi guardadas?")) {
+          ejecutarAccion('wifi');
+        }
+      } else if (tipo === 'hardreset') {
+        if (confirm("⚠️ ATENCIÓN: ¡Se borrarán TODOS los datos y programas! ¿Deseas continuar?")) {
+          ejecutarAccion('hardreset');
+        }
+      }
     }
 
     function guardarConfiguracion(e) {
